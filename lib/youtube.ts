@@ -49,6 +49,14 @@ export async function youtubeToken(): Promise<string> {
   return t.access_token;
 }
 
+export async function channelInfo(token: string): Promise<{ title: string; handle: string }> {
+  const d = await json(await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true", {
+    headers: { Authorization: `Bearer ${token}` },
+  }), "YouTube channel");
+  const sn = d.items?.[0]?.snippet ?? {};
+  return { title: sn.title ?? "", handle: sn.customUrl ?? "" };
+}
+
 export async function channelTitle(token: string): Promise<string> {
   const d = await json(await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true", {
     headers: { Authorization: `Bearer ${token}` },

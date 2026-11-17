@@ -95,7 +95,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const res = await fetch("/api/settings", {
       method: "POST",
       body: JSON.stringify({
-        groqApiKey: x.newGroqKey, groqModel: x.groqModel, niche: x.niche, handle: x.handle, hashtags: x.hashtags, blockedHashtags: x.blockedHashtags,
+        groqApiKey: x.newGroqKey, groqModel: x.groqModel, niche: x.niche, handle: x.handle, hashtags: x.hashtags, blockedHashtags: x.blockedHashtags, socialHandles: x.socialHandles,
         voice: x.voice, voiceRate: x.voiceRate, ttsProvider: x.ttsProvider, geminiApiKey: x.newGeminiKey,
         geminiVoice: x.geminiVoice, geminiStyle: x.geminiStyle, categories: x.categories, autoPublish: x.autoPublish,
         enabled: x.enabled, topicQueue: x.topicQueue, aiLabel: x.aiLabel, musicMode: x.musicMode, musicVolume: x.musicVolume,

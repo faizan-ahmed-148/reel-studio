@@ -6,7 +6,7 @@
  */
 import Groq from "groq-sdk";
 import { PREFERRED_MODELS, buildCaption, groqJson, type ReelScript } from "./script";
-import type { Platform, Settings } from "./store";
+import { platformHandles, type Platform, type Settings } from "./store";
 
 export type Captions = Record<Platform, string>;
 export interface CaptionResult { captions: Captions; youtubeTitle: string }
@@ -54,6 +54,17 @@ function finalize(text: string, tags: string[], fixed: string[], p: Platform, bl
   return out.slice(0, LIMITS[p].maxChars);
 }
 
+/** Keep only the platform's own @handle; any other @mention is replaced (or dropped if none). */
+function fixMentions(text: string, own: string): string {
+  return text
+    .replace(/(^|[\s(])@[A-Za-z0-9_.]+/g, (m, pre: string) => {
+      const h = m.slice(pre.length);
+      if (own && h.toLowerCase() === own.toLowerCase()) return m;
+      return own ? `${pre}${own}` : pre;
+    })
+    .replace(/[ \t]{2,}/g, " ");
+}
+
 const ytTitle = (t: string) => {
   const base = t.replace(/#\S+/g, "").replace(/\s+/g, " ").trim().slice(0, 88);
   return `${base} #Shorts`;
@@ -70,7 +81,10 @@ export async function generateCaptions(script: ReelScript, settings: Settings): 
   if (!settings.groqApiKey) return fb;
 
   const groq = new Groq({ apiKey: settings.groqApiKey });
-  const prompt = `You are a top social-media growth strategist for a Pakistani software-education creator (${settings.handle}).
+  const H = platformHandles(settings);
+  const cta = (p: Platform, ask: string) =>
+    H[p] ? `${ask} (mention exactly ${H[p]}, no other @handle)` : "Do NOT mention any @handle or account name";
+  const prompt = `You are a top social-media growth strategist for a Pakistani software-education creator.
 Write the BEST possible captions for this short video reel.
 
 Topic: ${script.topic}
@@ -88,11 +102,11 @@ Rules:
 - Hashtags: mix of high-volume (#programming, #coding, #softwareengineering), mid-size niche (topic-specific, e.g. #systemdesign #loadbalancer #backenddeveloper) and developer-community tags (#developers #learnprogramming #techeducation). Topic-specific tags first.${settings.blockedHashtags.trim() ? ` NEVER use these hashtags or any variation of them: ${settings.blockedHashtags}.` : ""} No spaces, no made-up gibberish.
 
 Per platform:
-- instagram: hook + value bullets + question + "Follow ${settings.handle} for daily software reels" style CTA. ${LIMITS.instagram.tags[0]}-${LIMITS.instagram.tags[1]} hashtags.
-- facebook: friendly, conversational, a bit shorter, question at the end. ${LIMITS.facebook.tags[0]}-${LIMITS.facebook.tags[1]} hashtags.
+- instagram: hook + value bullets + question + CTA: ${cta("instagram", `"Follow ${H.instagram} for daily software reels" style follow line`)}. ${LIMITS.instagram.tags[0]}-${LIMITS.instagram.tags[1]} hashtags.
+- facebook: friendly, conversational, a bit shorter, question at the end. ${cta("facebook", "follow line")}. ${LIMITS.facebook.tags[0]}-${LIMITS.facebook.tags[1]} hashtags.
 - youtube: a "title" (max 70 chars, Roman Urdu + English keywords people search, curiosity, no hashtags) and a description:
-  2-3 lines summary, then "Is video mein:" with 3-4 short bullet points, then a subscribe CTA. ${LIMITS.youtube.tags[0]}-${LIMITS.youtube.tags[1]} hashtags.
-- linkedin: professional but in Roman Urdu with some English, start with a strong insight, 3 "Key takeaways" lines (use "→"), end with a thoughtful question for developers. ${LIMITS.linkedin.tags[0]}-${LIMITS.linkedin.tags[1]} hashtags.
+  2-3 lines summary, then "Is video mein:" with 3-4 short bullet points, then a subscribe CTA. ${cta("youtube", "subscribe line")}. ${LIMITS.youtube.tags[0]}-${LIMITS.youtube.tags[1]} hashtags.
+- linkedin: professional but in Roman Urdu with some English, start with a strong insight, 3 "Key takeaways" lines (use "→"), end with a thoughtful question for developers. ${cta("linkedin", "follow line")}. ${LIMITS.linkedin.tags[0]}-${LIMITS.linkedin.tags[1]} hashtags.
 
 Return JSON:
 {"instagram":{"text":"...","hashtags":["#..."]},"facebook":{"text":"...","hashtags":["#..."]},"youtube":{"title":"...","text":"...","hashtags":["#..."]},"linkedin":{"text":"...","hashtags":["#..."]}}`;
@@ -107,7 +121,7 @@ Return JSON:
         const text = String(data?.[p]?.text ?? "").trim();
         const tags = Array.isArray(data?.[p]?.hashtags) ? data[p].hashtags.map(String) : [];
         if (!text || /[؀-ۿऀ-ॿ]/.test(text)) throw new Error(`bad ${p} caption`);
-        out[p] = finalize(text, tags, fixed, p);
+        out[p] = finalize(fixMentions(text, H[p]), tags, fixed, p);
       }
       out.youtube = finalize(out.youtube.replace(/\n\n[^\n]*$/, ""), ["#Shorts", ...(data?.youtube?.hashtags ?? [])], fixed, "youtube");
       const title = String(data?.youtube?.title ?? "").trim();

@@ -237,3 +237,5 @@ button.cat.on { background: var(--accent-soft); color: var(--accent-ink); }
 .toast.err { background: var(--bad-soft); color: var(--bad); border: 1px solid #f2c4cd; }
 .toast.ok { background: var(--good-soft); color: var(--good); border: 1px solid #bfe6cf; }
 .env-locked { background: #f1f5f2; color: var(--good); font-weight: 600; border-style: dashed; }
+.grid-handles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.grid-handles input { margin-top: 2px; }

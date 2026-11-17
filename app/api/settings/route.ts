@@ -82,6 +82,13 @@ export async function POST(req: Request) {
     if (str(body.youtube.clientSecret)) s.youtube.clientSecret = str(body.youtube.clientSecret)!;
     if (["public", "unlisted", "private"].includes(body.youtube.privacy)) s.youtube.privacy = body.youtube.privacy;
   }
+  if (body.socialHandles && typeof body.socialHandles === "object") {
+    s.socialHandles = Object.fromEntries(
+      Object.entries(body.socialHandles as Record<string, unknown>)
+        .filter(([k]) => ["instagram", "facebook", "youtube", "linkedin"].includes(k))
+        .map(([k, v]) => [k, String(v ?? "").trim().slice(0, 60)]),
+    );
+  }
   if (typeof body.aiLabel === "boolean") s.aiLabel = body.aiLabel;
   if (body.musicMode === "auto" || body.musicMode === "off") s.musicMode = body.musicMode;
   if (typeof body.musicVolume === "number") s.musicVolume = Math.max(0, Math.min(0.6, body.musicVolume));

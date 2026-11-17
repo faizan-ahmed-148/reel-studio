@@ -30,6 +30,7 @@ export interface Settings {
   handle: string;
   hashtags: string;
   blockedHashtags: string; // never used in captions
+  socialHandles: Partial<Record<Platform, string>>; // optional overrides for caption @mentions
   ttsProvider: "gemini" | "edge";
   musicMode: "auto" | "off";
   musicVolume: number;
@@ -68,6 +69,7 @@ export interface Settings {
     accessToken: string;
     expiresAt: number;
     channelTitle: string;
+    handle: string; // e.g. @codestria (from the channel's customUrl)
     privacy: "public" | "unlisted" | "private";
   };
   schedule: {
@@ -116,6 +118,7 @@ export const DEFAULT_SETTINGS: Settings = {
   handle: "@yourhandle",
   hashtags: "#tech #ai #learnwithme",
   blockedHashtags: "#pakistan #urdu",
+  socialHandles: {},
   ttsProvider: "gemini",
   musicMode: "auto",
   musicVolume: 0.22,
@@ -132,7 +135,7 @@ export const DEFAULT_SETTINGS: Settings = {
   enabled: { instagram: true, facebook: true, youtube: true, linkedin: true },
   meta: { appId: "", appSecret: "", graphVersion: "v23.0", userToken: "", pages: [], selectedPageId: "", igMaxSeconds: 0 },
   linkedin: { clientId: "", clientSecret: "", apiVersion: "202609", accessToken: "", authorUrn: "", name: "", expiresAt: 0, orgScope: false },
-  youtube: { clientId: "", clientSecret: "", refreshToken: "", accessToken: "", expiresAt: 0, channelTitle: "", privacy: "public" },
+  youtube: { clientId: "", clientSecret: "", refreshToken: "", accessToken: "", expiresAt: 0, channelTitle: "", handle: "", privacy: "public" },
   schedule: { enabled: false, days: [1, 2, 3, 4, 5], times: ["19:00"], timezone: "Asia/Karachi" },
 };
 
@@ -187,6 +190,7 @@ export function loadSettings(): Settings {
     linkedin: { ...DEFAULT_SETTINGS.linkedin, ...s.linkedin },
     youtube: { ...DEFAULT_SETTINGS.youtube, ...s.youtube },
     customTopics: { ...s.customTopics },
+    socialHandles: { ...s.socialHandles },
     schedule: { ...DEFAULT_SETTINGS.schedule, ...s.schedule },
   };
   for (const k of ENV_KEYS) if (fromEnv(k.env)) k.set(out, fromEnv(k.env));
@@ -205,6 +209,20 @@ export function updateSettings(fn: (s: Settings) => void): Settings {
   fn(s);
   saveSettings(s);
   return s;
+}
+
+const at = (h?: string) => (h ? `@${h.trim().replace(/^@+/, "")}` : "");
+
+/** The @handle to mention in each platform's caption ("" = no mention). */
+export function platformHandles(s: Settings): Record<Platform, string> {
+  const page = selectedPage(s);
+  const o = s.socialHandles ?? {};
+  return {
+    instagram: at(o.instagram) || at(page?.igUsername),
+    youtube: at(o.youtube) || at(s.youtube.handle),
+    facebook: at(o.facebook),
+    linkedin: at(o.linkedin),
+  };
 }
 
 export function selectedPage(s: Settings): MetaPage | undefined {
@@ -248,6 +266,7 @@ export function publicSettings(s: Settings) {
       channelTitle: s.youtube.channelTitle,
       privacy: s.youtube.privacy,
     },
+    detectedHandles: platformHandles({ ...s, socialHandles: {} }),
     usedTopics: s.usedTopics.slice(-50).reverse(),
     usedCount: s.usedTopics.length,
     bank: bankStats(s.categories, s.usedTopics, s.customTopics),

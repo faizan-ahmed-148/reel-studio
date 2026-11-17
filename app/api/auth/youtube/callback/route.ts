@@ -1,6 +1,6 @@
 import { loadSettings, updateSettings } from "@/lib/store";
 import { appOrigin, back, checkState } from "@/lib/oauth";
-import { channelTitle, exchangeCode } from "@/lib/youtube";
+import { channelInfo, exchangeCode } from "@/lib/youtube";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +11,13 @@ export async function GET(req: Request) {
   try {
     const t = await exchangeCode(q.get("code") ?? "", `${appOrigin(req)}/api/auth/youtube/callback`, loadSettings());
     if (!t.refresh_token) throw new Error("Refresh token nahi mila — myaccount.google.com/permissions se app hata kar dobara connect karein.");
-    const title = await channelTitle(t.access_token).catch(() => "");
+    const ch = await channelInfo(t.access_token).catch(() => ({ title: "", handle: "" }));
     updateSettings((s) => {
       s.youtube.refreshToken = t.refresh_token;
       s.youtube.accessToken = t.access_token;
       s.youtube.expiresAt = Date.now() + Number(t.expires_in ?? 3600) * 1000;
-      s.youtube.channelTitle = title;
+      s.youtube.channelTitle = ch.title;
+      s.youtube.handle = ch.handle;
     });
     return back(req, { connected: "youtube" });
   } catch (e) {

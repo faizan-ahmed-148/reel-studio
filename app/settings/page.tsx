@@ -127,6 +127,17 @@ export default function SettingsPage() {
           <label>Yeh hashtags kabhi na lagao</label>
           <input value={d.blockedHashtags} onChange={(e) => set({ blockedHashtags: e.target.value })} placeholder="#pakistan #urdu" />
           <p className="small">In ke milte-julte tags bhi hat jate hain (jaise #pakistanidevelopers, #techinurdu).</p>
+          <label>Caption mein @mention (har platform ka apna)</label>
+          <div className="grid-handles">
+            {(["instagram", "youtube", "facebook", "linkedin"] as const).map((p) => (
+              <div key={p}>
+                <span className="small">{p[0].toUpperCase() + p.slice(1)}</span>
+                <input value={d.socialHandles[p] ?? ""} onChange={(e) => set({ socialHandles: { ...d.socialHandles, [p]: e.target.value } })}
+                  placeholder={d.detectedHandles[p] ? `${d.detectedHandles[p]} (auto)` : "khali = koi mention nahi"} autoComplete="off" />
+              </div>
+            ))}
+          </div>
+          <p className="small">Khali chhorein to Instagram/YouTube ka handle connected account se khud aata hai; Facebook/LinkedIn par koi mention nahi hota.</p>
           <label className="check">
             <span className="switch"><input type="checkbox" checked={d.aiLabel} onChange={(e) => set({ aiLabel: e.target.checked })} /><span /></span>
             Har post par AI label / disclosure
