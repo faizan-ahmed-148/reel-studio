@@ -55,6 +55,12 @@ Language rules:
   e.g. "Yeh server load ko barabar baant deta hai"). Tech terms stay English. Never use Urdu or Hindi script.
 - Narration = the voice-over. Energetic, conversational, natural spoken Urdu like a Pakistani YouTuber talking to a friend
   ("dosto", "socho", "ab dekho", "simple si baat hai"). Short sentences. No emojis, no hashtags, no markdown.
+- GRAMMAR (very important, Pakistani spoken style): English tech nouns (system, server, database, cache, app, API, request,
+  data, load, performance, query, code, network, traffic, latency...) take MASCULINE verbs: "cache fast hota hai",
+  "server load handle karta hai", "performance improve hota hai", "traffic barh jata hai", "data store hota hai".
+  Use feminine forms (hoti/karti/jati/deti) ONLY with truly feminine Urdu nouns like baat, cheez, raftaar, zindagi, ghalti.
+- Never use gendered first-person verbs about the narrator ("main batata/batati hoon", "main samjhaunga/samjhaungi").
+  Use inclusive forms instead: "chalo dekhte hain", "aaiye samajhte hain", "ab dekho".
 - Headings are content, never labels like "Summary", "CTA", "Chart", "Stat", "Diagram".
 - Narration never mentions the slide itself ("chart dikhata hai", "stat", "diagram mein") — just explain naturally.
 Return ONLY valid JSON.`;
@@ -219,10 +225,23 @@ function onScreenText(d: ReelScript): string[] {
   return out;
 }
 
+/** "<word> hoti/karti/jati…" pairs, ignoring genuinely feminine Urdu nouns. */
+const FEMININE_NOUNS = /^(baat|cheez|raftaar|zindagi|ghalti|duniya|koshish|madad|soorat|shakal|aadat|taaqat|kahani|video|reel|machine|memory|speed|file|image|website|team|life)$/i;
+export function feminineVerbs(text: string): string[] {
+  const out: string[] = [];
+  const re = /\b([A-Za-z]+)\s+(?:[a-z]+\s+)?(hoti|karti|jati|deti|leti|rehti|sakti|lagti|milti|chalti|banti|aati|batati|samjhati)\b/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) if (!FEMININE_NOUNS.test(m[1])) out.push(`${m[1]} ${m[2]}`);
+  return out;
+}
+
 function problems(d: ReelScript): string[] {
   const out: string[] = [];
   if ([...onScreenText(d), ...d.scenes.map((s) => s.narration)].some((t) => ARABIC.test(t) || DEVA.test(t)))
     out.push("ALL text including narration MUST be Roman Urdu in English letters only (no Urdu/Hindi script)");
+  const fem = feminineVerbs(d.scenes.map((s) => s.narration).join(" "));
+  if (fem.length > 2)
+    out.push(`too many feminine verb forms (${fem.slice(0, 6).join(", ")}): English tech nouns must take masculine verbs (hota/karta/jata/deta hai); feminine only for baat/cheez/raftaar-type Urdu nouns`);
   if (d.scenes.slice(1).some((s) => /\b(summary|cta|chart|stat|diagram)\b/i.test(s.heading.trim())))
     out.push("headings must be real content in Roman Urdu, not labels like Summary/CTA/Chart/Stat");
   if (d.scenes.filter((s) => s.visual.type === "diagram").length < 2) out.push("need at least 2 scenes with a valid architecture diagram (3-8 nodes with edges)");
@@ -299,6 +318,54 @@ ${lines.map((l, i) => `${i + 1}. ${l}`).join("\n")}`,
     return { ...script, scenes: script.scenes.map((s) => ({ ...s, subtitle: s.narration })) };
   }
   throw new Error(`Narration ko voice script mein badalna fail hua: ${lastErr}`);
+}
+
+/**
+ * Shorter version of an existing reel (for platforms with a length cap, e.g. Instagram ~40s on some accounts).
+ * Keeps the hook, the strongest visuals (diagrams first) and the CTA, and rewrites each narration shorter.
+ * `wordsBudget` = total spoken words (Roman Urdu).
+ */
+export async function shortenScript(settings: Settings, script: ReelScript, wordsBudget: number): Promise<ReelScript> {
+  const n = script.scenes.length;
+  const middle = script.scenes.slice(1, -1).map((s, i) => ({ s, i: i + 1 }));
+  const rank = (t: string) => ({ diagram: 0, compare: 1, chart: 2, stat: 3, code: 4, bullets: 5 } as Record<string, number>)[t] ?? 6;
+  const keep = middle.sort((a, b) => rank(a.s.visual.type) - rank(b.s.visual.type)).slice(0, 3).map((x) => x.i);
+  const idx = [0, ...keep.sort((a, b) => a - b), n - 1];
+  const picked = idx.map((i) => script.scenes[i]);
+  const per = Math.max(7, Math.floor(wordsBudget / picked.length));
+  const groq = new Groq({ apiKey: settings.groqApiKey });
+  const model = settings.groqModel || PREFERRED_MODELS[0];
+  const roman = picked.map((s) => s.subtitle || s.narration);
+  let lines: string[] = [];
+  let lastErr = "";
+  for (let attempt = 0; attempt < 3 && !lines.length; attempt++) {
+    try {
+      const raw = await groqJson(groq, model, [{
+        role: "user",
+        content: `These are the voice-over lines of a short Roman Urdu explainer reel about "${script.topic}".
+Rewrite them into a SHORTER reel: each line max ${per} words, total max ${wordsBudget} words.
+Keep the same meaning and order, keep it energetic and natural (Pakistani YouTuber talking to a friend), keep English tech terms.
+The lines must still flow as one complete mini-explanation (the scenes between them are removed).
+Line 1 is the hook; the last line must end with a short follow request ("Follow karo aisi aur videos ke liye").
+Grammar: English tech nouns take MASCULINE verbs (cache fast hota hai, server handle karta hai, traffic barh jata hai);
+no gendered first-person verbs about the narrator.
+Roman Urdu only (English letters). Return JSON {"lines": [...]} with exactly ${roman.length} strings.
+
+${roman.map((l, i) => `${i + 1}. ${l}`).join("\n")}`,
+      }], 0.5);
+      const out = (JSON.parse(raw).lines ?? []).map((l: unknown) => String(l ?? "").replace(/^\d+\.\s*/, "").trim()).filter(Boolean);
+      const words = out.reduce((a: number, l: string) => a + l.split(/\s+/).length, 0);
+      if (out.length !== roman.length) throw new Error(`got ${out.length} lines`);
+      if (out.some((l: string) => ARABIC.test(l) || DEVA.test(l))) throw new Error("not Roman Urdu");
+      if (words > wordsBudget * 1.15) throw new Error(`too long: ${words} words`);
+      lines = out;
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+    }
+  }
+  if (!lines.length) throw new Error(`Chhota version likhna fail hua: ${lastErr}`);
+  const short: ReelScript = { ...script, scenes: picked.map((s, i) => ({ ...s, narration: lines[i], subtitle: lines[i] })) };
+  return toVoiceScript(groq, model, short, settings);
 }
 
 /** Ask Groq for brand-new topics in a category that are not in the used list. */

@@ -75,6 +75,7 @@ function VideoCard({ h, onCaption, onScript }: { h: HistoryEntry; onCaption: () 
             {h.video && <button className="sm ghost" onClick={onCaption}>Caption</button>}
             {h.script && <button className="sm ghost" onClick={onScript}>Script</button>}
             {h.video && <a className="btn sm ghost" href={`/api/video/${h.id}?download=1`} title="Download">⬇</a>}
+            {h.igVideo && <a className="btn sm ghost" href={`/api/video/${h.id}?download=1&ig=1`} title="Instagram version download">⬇ IG</a>}
             <button className="sm danger" onClick={() => remove(h.id)} title="Delete">🗑</button>
           </div>
         )}

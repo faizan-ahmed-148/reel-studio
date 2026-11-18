@@ -98,6 +98,7 @@ export interface HistoryEntry {
   caption?: string;
   captions?: Partial<Record<Platform, string>>;
   youtubeTitle?: string;
+  igVideo?: string; // shorter Instagram version (re-rendered), when the account has a length cap
   video?: string;
   error?: string;
   progress?: string;

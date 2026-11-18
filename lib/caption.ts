@@ -99,6 +99,7 @@ Rules:
 - Then 2-4 short lines of real value (what they'll learn / the key insight), using line breaks. Emojis allowed but tasteful (max 4 on Instagram, max 2 on LinkedIn).
 - End with ONE engagement question that invites comments, plus a save/share CTA ("Save karo baad ke liye", "Apne developer dost ko tag karo").
 - Do NOT put hashtags inside the text; give them separately.
+- Grammar: English tech nouns take MASCULINE verbs ("cache fast hota hai", "server handle karta hai", "traffic barh jata hai").
 - Hashtags: mix of high-volume (#programming, #coding, #softwareengineering), mid-size niche (topic-specific, e.g. #systemdesign #loadbalancer #backenddeveloper) and developer-community tags (#developers #learnprogramming #techeducation). Topic-specific tags first.${settings.blockedHashtags.trim() ? ` NEVER use these hashtags or any variation of them: ${settings.blockedHashtags}.` : ""} No spaces, no made-up gibberish.
 
 Per platform:

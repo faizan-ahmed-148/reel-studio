@@ -3,8 +3,7 @@
  * so the video does NOT need to be hosted on a public URL.
  */
 import fs from "node:fs";
-import { selectedPage, updateSettings, type Platform, type Settings } from "./store";
-import { IG_SAFE_SECONDS, instagramCut, videoDuration } from "./igcut";
+import { selectedPage, type Platform, type Settings } from "./store";
 import { postYouTube } from "./youtube";
 
 const graph = (s: Settings) => `https://graph.facebook.com/${s.meta.graphVersion || "v23.0"}`;
@@ -42,7 +41,8 @@ async function netFetch(url: string, init: RequestInit, tries = 3): Promise<Resp
   throw new Error(`Network error (${err.cause?.code ?? err.message}) — internet check karein`);
 }
 
-class IgRejected extends Error {}
+/** Instagram refused the file (on some accounts: Reels longer than ~40s via the API). */
+export class IgRejected extends Error {}
 
 async function igUploadOnce(file: string, caption: string, s: Settings): Promise<string> {
   const page = selectedPage(s)!;
@@ -90,28 +90,10 @@ async function igUploadOnce(file: string, caption: string, s: Settings): Promise
   throw new Error("Instagram processing timed out");
 }
 
-/**
- * Some (often newly converted) Instagram accounts get a ~40s cap on API-published Reels.
- * We try the full video; if Instagram refuses it, we upload a shorter Instagram cut and
- * remember the account's limit for next time.
- */
 export async function postInstagram(video: string, caption: string, s: Settings): Promise<string> {
   const page = selectedPage(s);
   if (!page?.igUserId) throw new Error("Instagram connected nahi hai (Facebook Page se linked Instagram Business/Creator account chahiye).");
-  const dur = await videoDuration(video);
-  const cap = s.meta.igMaxSeconds || 0;
-  if (!cap || dur <= cap) {
-    try {
-      return await igUploadOnce(video, caption, s);
-    } catch (e) {
-      if (!(e instanceof IgRejected) || dur <= IG_SAFE_SECONDS) throw e;
-      console.warn(`[reel-studio] Instagram refused ${dur.toFixed(0)}s reel, trying a ${IG_SAFE_SECONDS}s Instagram cut`);
-    }
-  }
-  const cut = await instagramCut(video, cap || IG_SAFE_SECONDS);
-  const id = await igUploadOnce(cut, caption, s);
-  if (!cap) updateSettings((x) => { x.meta.igMaxSeconds = IG_SAFE_SECONDS; });
-  return id;
+  return igUploadOnce(video, caption, s);
 }
 
 // ---------------- Facebook Page Reels ----------------

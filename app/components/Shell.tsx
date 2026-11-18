@@ -50,6 +50,9 @@ function Sidebar() {
           </Link>
         ))}
       </nav>
+      <button className="nav logout" onClick={async () => { await fetch("/api/logout", { method: "POST" }); window.location.href = "/login"; }}>
+        ⎋ Logout
+      </button>
       <div className="side-foot">
         <div className="side-label">Connections</div>
         {d && PLATFORMS.map((p) => (
@@ -74,6 +77,8 @@ function Toast() {
 }
 
 export function Shell({ children }: { children: ReactNode }) {
+  const path = usePathname();
+  if (path === "/login") return <>{children}</>;
   return (
     <AppProvider>
       <div className="app">

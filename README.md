@@ -23,6 +23,18 @@ Schedule tabhi chalega jab server chal raha ho. 24/7 chalane ke liye PC on rakhe
 npm i -g pm2 && pm2 start "npm start" --name reel-studio && pm2 save
 ```
 
+## Login (security)
+Poori website aur saari APIs login ke peeche hain. Sirf woh user login kar sakta hai jo `.env.local` mein hai:
+```
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=<lamba password>
+SESSION_SECRET=<random string>
+```
+- Session cookie 30 din chalti hai (httpOnly, signed). Password ya `SESSION_SECRET` badalne se sab logins khatam ho jate hain.
+- Ek IP se 15 minute mein 5 ghalat koshishon ke baad login lock ho jata hai.
+- Agar `ADMIN_USERNAME`/`ADMIN_PASSWORD` set na hon to koi login nahi kar sakta (website band rehti hai).
+- Live domain par hamesha **https** use karein, warna password network par saaf text mein jata hai.
+
 ## Keys `.env.local` mein (recommended)
 `.env.example` ko `.env.local` mein copy karein aur keys bharein:
 `GROQ_API_KEY, GEMINI_API_KEY, META_APP_ID, META_APP_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, LINKEDIN_CLIENT_ID, LINKEDIN_CLIENT_SECRET`.
